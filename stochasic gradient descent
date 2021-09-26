@@ -1,0 +1,87 @@
+# import all required libraries
+from google.colab import drive
+import pandas as pd
+from random import shuffle
+from collections import Counter
+from math import exp,log
+import matplotlib.pyplot as plt
+from pprint import pprint
+import numpy as np
+drive.mount('/content/drive/')
+basePath = "/content/drive/My Drive/Colab Notebooks/Artificial Intelligence/Data/"
+
+train_gd=pd.read_csv(basePath + "gd-train.dat", delim_whitespace="/t")
+test_gd=pd.read_csv(basePath + "gd-test.dat", delim_whitespace="/t")
+
+# Train the model using the given training dataset and the learning rate
+# return the "weights" learnt for the perceptron - include the weight assocaited with bias as the last entry
+def train(train_data, learning_rate=0.05):
+    weights=np.zeros(len(train_data.columns))
+    train_data=train_data.sample(frac=1).reset_index(drop=True)
+    y=train_data.iloc[:,-1]
+    attributes=pd.concat([train_data.loc[:, train_data.columns != 'C'],pd.DataFrame([1]*len(train_data),columns=['B'])],axis=1)
+    for i,x in attributes.iterrows():
+      h=np.dot(x.values,weights)
+      z=[sigmoid_activation(h)]
+      error=y[i]-z
+      # update all weights individually using learning_rate, (y-z), and the corresponding 'x'
+      weights=weights+learning_rate*(error)*x
+    return weights # return the final learned weights
+    
+# Test the model (weights learnt) using the given test dataset
+# returns the accuracy value
+def test(test_data, weights, threshold=0.5):
+    # go through each training data instance
+    y=test_data.iloc[:,-1]
+    attributes=pd.concat([test_data.loc[:, test_data.columns != 'C'],pd.DataFrame([1]*len(test_data),columns=['B'])],axis=1)
+    labels=[]
+    for i,x in attributes.iterrows():
+      h=np.dot(x.values,weights)
+      z=sigmoid_activation(h)
+      labels.append(1 if z>=threshold else 0)
+    compare=labels-y
+    accuracy=(compare==0).sum()/len(compare)
+    return accuracy
+    
+def gradient_descent(df_train, df_test, learning_rate=0.5, threshold=0.5):
+    # calls the train function to train the model and obtain the weights
+    w= train(df_train,learning_rate)
+    # calls the test function with the training dataset to obtain the training accuracy
+    training_accuracy=test(df_train,w,threshold)
+    # calls the test function with the testing dataset to obtain the testing accuracy
+    testing_accuracy=test(df_test,w,threshold)
+    # returns (trainAccuracy, testAccuracy)
+    return training_accuracy,testing_accuracy
+    
+# Main algorithm loop
+train_pts=[]
+test_pts=[]
+learning_rts=[]
+for lr in np.arange(.05,1.05,.05):
+  x,y=gradient_descent(train_gd,test_gd,lr)
+  train_pts.append(x)
+  test_pts.append(y)
+  learning_rts.append(lr)
+  print(f'Accuracy for LR of {lr} on Training set = {x} ')
+  print(f'Accuracy for LR of {lr} on Testing set = {y} ')
+
+# Plot the graphs for accuracy results.
+f, ax = plt.subplots(figsize = (15,10))
+ax.set_title("Training Set Accuracy in Different Learning Rates")
+ax.set_xlabel("Learning Rate")
+ax.set_ylabel("Accuracy (%)")
+ax.xaxis.label.set_color('black')
+ax.yaxis.label.set_color('black')
+ax.tick_params(colors='black',)
+ax.set_xticks(np.arange(.05,1.05,.05))
+plt.plot(learning_rts, train_pts, color='black', marker='o')
+
+f, ax = plt.subplots(figsize = (15,10))
+ax.set_title("Testing Set Accuracy in Different Learning Rates")
+ax.set_xlabel("Learning Rate")
+ax.set_ylabel("Accuracy (%)")
+ax.xaxis.label.set_color('black')
+ax.yaxis.label.set_color('black')
+ax.tick_params(colors='black',)
+ax.set_xticks(np.arange(.05,1.05,.05))
+plt.plot(learning_rts,test_pts, color='black', marker='o')
